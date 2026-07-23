@@ -1,0 +1,33 @@
+name: UFC Odds Report
+
+on:
+  schedule:
+    - cron: '0 15 * * 2'   # Tuesday 10am Central (CDT/UTC-5)
+    - cron: '0 22 * * 5'   # Friday 5pm Central (CDT/UTC-5)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-and-notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install requests
+      - run: python ufc_fights.py
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC_UFC }}
+      - name: Commit updated odds snapshot
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add last_ufc_odds.json
+          git diff --staged --quiet || git commit -m "Update odds snapshot"
+          git push
